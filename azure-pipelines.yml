@@ -17,32 +17,48 @@ parameters:
     type: boolean
     default: false
 
+variables:
+    workingdir: '$(System.DefaultWorkingDirectory)/Parent'
+    backend: 'Jitu SCN'
+
 steps:
 - task: TerraformInstaller@1
   inputs:
     terraformVersion: 'latest'
 
 - task: TerraformTask@5
+  condition: eq(${{parameters.runinit}},true)
+  displayName: init
   inputs:
     provider: 'azurerm'
     command: 'init'
-    workingDirectory: '$(System.DefaultWorkingDirectory)/Parent'
-    backendServiceArm: 'Jitu SCN'
+    workingDirectory: $(workingdir)
+    backendServiceArm: $(backend)
     backendAzureRmStorageAccountName: 'shivajitustorage1'
     backendAzureRmContainerName: 'shivacontainer1'
     backendAzureRmKey: 'shiva.tfstate'
 
+
+- script: |
+    pip install checkov
+    checkov -d $(workingdir)
+  displayName: "Run Checkov Security Scan"
+
 - task: TerraformTask@5
+  condition: eq(${{parameters.runplan}},true)
+  displayName: plan
   inputs:
     provider: 'azurerm'
     command: 'plan'
-    workingDirectory: '$(System.DefaultWorkingDirectory)/Parent'
-    environmentServiceNameAzureRM: 'Jitu SCN'
+    workingDirectory: $(workingdir)
+    environmentServiceNameAzureRM: $(backend)
 
 - task: TerraformTask@5
+  condition: eq(${{parameters.runapply}},true)
+  displayName: apply
   inputs:
     provider: 'azurerm'
     command: 'apply'
-    workingDirectory: '$(System.DefaultWorkingDirectory)/Parent'
+    workingDirectory: $(workingdir)
     commandOptions: '--auto-approve'
-    environmentServiceNameAzureRM: 'Jitu SCN'
+    environmentServiceNameAzureRM: $(backend)
