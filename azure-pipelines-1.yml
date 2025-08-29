@@ -1,0 +1,17 @@
+trigger: none
+pool: jitu agent
+
+steps:
+- task: TerraformInstaller@1
+  inputs:
+    terraformVersion: 'latest'
+
+- task: TerraformTask@5
+  inputs:
+    provider: 'azurerm'
+    command: 'init'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/Parent'
+    backendServiceArm: 'Jitu SCN'
+    backendAzureRmStorageAccountName: 'shivajitustorage1'
+    backendAzureRmContainerName: 'shivacontainer1'
+    backendAzureRmKey: 'shiva.tfstate'
