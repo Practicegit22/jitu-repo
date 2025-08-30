@@ -1,5 +1,29 @@
-trigger: none
-pool: jitu agent
+
+trigger:
+ branches:
+    include:
+      - feature/*
+      - main
+
+pool:
+ name: jitu agent
+
+parameters:
+  - name: runinit
+    type: boolean
+    default: true
+
+  - name: runplan
+    type: boolean
+    default: true
+
+  - name: runapply
+    type: boolean
+    default: true
+
+variables:
+    workingdir: '$(System.DefaultWorkingDirectory)/Parent'
+    backend: 'Jitu SCN'
 
 steps:
 - task: TerraformInstaller@1
@@ -7,11 +31,37 @@ steps:
     terraformVersion: 'latest'
 
 - task: TerraformTask@5
+  condition: eq(${{parameters.runinit}},true)
+  displayName: init
   inputs:
     provider: 'azurerm'
     command: 'init'
-    workingDirectory: '$(System.DefaultWorkingDirectory)/Parent'
-    backendServiceArm: 'Jitu SCN'
+    workingDirectory: $(workingdir)
+    backendServiceArm: $(backend)
     backendAzureRmStorageAccountName: 'shivajitustorage1'
     backendAzureRmContainerName: 'shivacontainer1'
     backendAzureRmKey: 'shiva.tfstate'
+
+
+
+- task: TerraformTask@5
+  condition: eq(${{parameters.runplan}},true)
+  displayName: plan
+  inputs:
+    provider: 'azurerm'
+    command: 'plan'
+    workingDirectory: $(workingdir)
+    environmentServiceNameAzureRM: $(backend)
+
+- task: TerraformTask@5
+  condition: and(
+              eq(${{ parameters.runapply }}, true), 
+              eq(variables['Build.SourceBranch'], 'refs/heads/main')
+            )
+  displayName: apply
+  inputs:
+    provider: 'azurerm'
+    command: 'apply'
+    workingDirectory: $(workingdir)
+    commandOptions: '--auto-approve'
+    environmentServiceNameAzureRM: $(backend)
