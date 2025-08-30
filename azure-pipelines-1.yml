@@ -25,14 +25,18 @@ variables:
   backend: 'Jitu SCN'
 
 jobs:
-- job: Terraform_Init
-  condition: eq(${{ parameters.runinit }}, true)
+- job: Terraform_InitPlan
+  condition: or(
+              eq(${{ parameters.runinit }}, true),
+              eq(${{ parameters.runplan }}, true)
+            )
   steps:
     - task: TerraformInstaller@1
       inputs:
         terraformVersion: 'latest'
 
     - task: TerraformTask@5
+      condition: eq(${{ parameters.runinit }}, true)
       displayName: init
       inputs:
         provider: 'azurerm'
@@ -43,11 +47,8 @@ jobs:
         backendAzureRmContainerName: 'shivacontainer1'
         backendAzureRmKey: 'shiva.tfstate'
 
-- job: Terraform_Plan
-  dependsOn: Terraform_Init
-  condition: eq(${{ parameters.runplan }}, true)
-  steps:
     - task: TerraformTask@5
+      condition: eq(${{ parameters.runplan }}, true)
       displayName: plan
       inputs:
         provider: 'azurerm'
@@ -56,12 +57,16 @@ jobs:
         environmentServiceNameAzureRM: $(backend)
 
 - job: Terraform_Apply
-  dependsOn: Terraform_Plan
+  dependsOn: Terraform_InitPlan
   condition: and(
               eq(${{ parameters.runapply }}, true),
               eq(variables['Build.SourceBranch'], 'refs/heads/main')
             )
   steps:
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+
     - task: TerraformTask@5
       displayName: apply
       inputs:
