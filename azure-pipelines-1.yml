@@ -1,12 +1,11 @@
-
 trigger:
- branches:
+  branches:
     include:
       - feature/*
       - main
 
 pool:
- name: jitu agent
+  name: jitu agent
 
 parameters:
   - name: runinit
@@ -22,46 +21,52 @@ parameters:
     default: true
 
 variables:
-    workingdir: '$(System.DefaultWorkingDirectory)/Parent'
-    backend: 'Jitu SCN'
+  workingdir: '$(System.DefaultWorkingDirectory)/Parent'
+  backend: 'Jitu SCN'
 
-steps:
-- task: TerraformInstaller@1
-  inputs:
-    terraformVersion: 'latest'
+jobs:
+- job: Terraform_Init
+  condition: eq(${{ parameters.runinit }}, true)
+  steps:
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
 
-- task: TerraformTask@5
-  condition: eq(${{parameters.runinit}},true)
-  displayName: init
-  inputs:
-    provider: 'azurerm'
-    command: 'init'
-    workingDirectory: $(workingdir)
-    backendServiceArm: $(backend)
-    backendAzureRmStorageAccountName: 'shivajitustorage1'
-    backendAzureRmContainerName: 'shivacontainer1'
-    backendAzureRmKey: 'shiva.tfstate'
+    - task: TerraformTask@5
+      displayName: init
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: $(workingdir)
+        backendServiceArm: $(backend)
+        backendAzureRmStorageAccountName: 'shivajitustorage1'
+        backendAzureRmContainerName: 'shivacontainer1'
+        backendAzureRmKey: 'shiva.tfstate'
 
+- job: Terraform_Plan
+  dependsOn: Terraform_Init
+  condition: eq(${{ parameters.runplan }}, true)
+  steps:
+    - task: TerraformTask@5
+      displayName: plan
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: $(workingdir)
+        environmentServiceNameAzureRM: $(backend)
 
-
-- task: TerraformTask@5
-  condition: eq(${{parameters.runplan}},true)
-  displayName: plan
-  inputs:
-    provider: 'azurerm'
-    command: 'plan'
-    workingDirectory: $(workingdir)
-    environmentServiceNameAzureRM: $(backend)
-
-- task: TerraformTask@5
+- job: Terraform_Apply
+  dependsOn: Terraform_Plan
   condition: and(
-              eq(${{ parameters.runapply }}, true), 
+              eq(${{ parameters.runapply }}, true),
               eq(variables['Build.SourceBranch'], 'refs/heads/main')
             )
-  displayName: apply
-  inputs:
-    provider: 'azurerm'
-    command: 'apply'
-    workingDirectory: $(workingdir)
-    commandOptions: '--auto-approve'
-    environmentServiceNameAzureRM: $(backend)
+  steps:
+    - task: TerraformTask@5
+      displayName: apply
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: $(workingdir)
+        commandOptions: '--auto-approve'
+        environmentServiceNameAzureRM: $(backend)
